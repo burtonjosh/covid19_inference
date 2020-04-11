@@ -15,6 +15,21 @@ class normal:
     def log_likelihood_hessian(self,position):
         return -1/self.variance
 
+class multivariate_normal:
+    def __init__(self,mean,covariance_matrix):
+        self.mean = mean
+        self.covariance_matrix = covariance_matrix
+
+    # TODO:
+    def log_likelihood(self, position):
+        return
+
+    def log_likelihood_gradient(self,position):
+        return
+
+    def log_likelihood_hessian(self,position):
+        return
+
 def random_walk(model,number_of_samples,initial_position,step_size,proposal_covariance=None,thinning_rate=1):
     """
     Random walk Metropolis Hastings which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
@@ -74,7 +89,7 @@ def random_walk(model,number_of_samples,initial_position,step_size,proposal_cova
     for iteration in range(1,number_of_iterations):
         # progress measure
         if iteration%(number_of_iterations//10)==0:
-            print("Progress: ",100*iteration/number_of_iterations)
+            print("Progress: ",100*iteration//number_of_iterations,'%')
 
         if identity:
             proposal = current_position + step_size*np.random.normal(size=number_of_parameters)
