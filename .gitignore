@@ -1,2 +1,17 @@
 *.pyc
 __pycache__/
+
+# files in any output folders
+output/
+
+# C extensions
+*.so
+
+# documents
+*.pdf
+
+# numpy arrays
+*.npy
+
+# images
+*.png 
