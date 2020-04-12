@@ -18,17 +18,22 @@ number_of_cpus = mp.cpu_count()
 
 class TestInference(unittest.TestCase):
 
-    def test_random_walk(self):
+    def xest_random_walk_on_normal(self):
         mean = 7
         variance = 2
 
         normal_test = covid_inference.normal(mean,variance)
-        number_of_samples = 100000
+        number_of_samples = 10000
         initial_position = np.array([1.0])
         step_size = 7
-        thinning_rate = 10
+        # proposal_covariance = np.array([[0.5]])
+        thinning_rate = 1
 
-        output = covid_inference.random_walk(normal_test,number_of_samples,initial_position,step_size,thinning_rate=thinning_rate)
+        output = covid_inference.random_walk(normal_test,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             thinning_rate=thinning_rate)
 
         # test that mean and variance inferences are within 0.01 of the ground truth
         np.testing.assert_allclose(np.mean(output),mean,0.01)
@@ -36,3 +41,31 @@ class TestInference(unittest.TestCase):
 
         # test that we get the expected number of samples
         np.testing.assert_almost_equal(output.shape[0],number_of_samples)
+
+    def test_random_walk_on_multivariate_normal(self):
+        mean = np.array([6,2])
+        covariance_matrix = np.array([[2,1],[1,2]])
+
+        multivariate_normal_test = covid_inference.multivariate_normal(mean,covariance_matrix)
+        number_of_samples = 10000
+        initial_position = np.array([1.0,1.0])
+        step_size = 3.5
+        proposal_covariance = np.array([[1,0.5],[0.5,1]])
+        thinning_rate = 10
+
+        output = covid_inference.random_walk(multivariate_normal_test,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             proposal_covariance=proposal_covariance,
+                                             thinning_rate=thinning_rate)
+
+        # test that mean and variance inferences are within 0.01 of the ground truth
+        np.testing.assert_allclose(np.mean(output[:,0]),mean[0],0.01)
+        np.testing.assert_allclose(np.var(output[:,0]),covariance_matrix[0,0],0.1)
+        np.testing.assert_allclose(np.mean(output[:,1]),mean[1],0.01)
+        np.testing.assert_allclose(np.var(output[:,1]),covariance_matrix[1,1],0.1)
+
+        # test that we get the expected number of samples
+        np.testing.assert_almost_equal(output.shape[0],number_of_samples)
+        np.testing.assert_almost_equal(output.shape[1],2)
