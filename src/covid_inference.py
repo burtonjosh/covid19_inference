@@ -182,8 +182,8 @@ class hybrid_rosenbrock23:
         Parameters
         ----------
 
-        mean : numpy array
-            a 1x5 mean vector of the hybrid rosenbrock distribution
+        mean : double
+            the mean, mu, of the hybrid rosenbrock distribution
 
         shape : numpy array
             a 1x5 vector containing one half the precision of each normal kernel
@@ -266,12 +266,12 @@ class hybrid_rosenbrock23:
         #                            4*b*q[1], 0, 0, -2*b*(1 +6*q[4]^2 -2*q[5]), 4*b*q[4],
         #                            0, 0, 0, 4*b*q[4], -2*b) ,d,d, byrow = T)}
 
-        log_likelihood_hessian = np.array([[-2*self.shape[0] - 24*self.shape[1]*position[0]**2 + 4*self.shape[1]*position[1]+4*self.shape[1]*position[3],
-                                            4*self.shape[1]*position[0],0,4*self.shape[1]*position[0],0],
-                                           [4*self.shape[1]*position[0],-2*self.shape[1]*(1 + 6*position[1]**2 - 2*position[2]),4*self.shape[1]*position[1],0,0],
-                                           [0,4*self.shape[1]*position[1],-2*self.shape[1],0,0],
-                                           [4*self.shape[1]*position[0],0,0,-2*self.shape[1]*(1 + 6*position[3]**2 - 2*position[4]),4*self.shape[1]*position[3]],
-                                           [0,0,0,4*self.shape[1]*position[3],-2*self.shape[1]]])
+        log_likelihood_hessian = -np.array([[-2*self.shape[0] - 24*self.shape[1]*position[0]**2 + 4*self.shape[1]*position[1]+4*self.shape[1]*position[3],
+                                             4*self.shape[1]*position[0],0,4*self.shape[1]*position[0],0],
+                                            [4*self.shape[1]*position[0],-2*self.shape[1]*(1 + 6*position[1]**2 - 2*position[2]),4*self.shape[1]*position[1],0,0],
+                                            [0,4*self.shape[1]*position[1],-2*self.shape[1],0,0],
+                                            [4*self.shape[1]*position[0],0,0,-2*self.shape[1]*(1 + 6*position[3]**2 - 2*position[4]),4*self.shape[1]*position[3]],
+                                            [0,0,0,4*self.shape[1]*position[3],-2*self.shape[1]]])
         return log_likelihood_hessian
 
 def random_walk(model,number_of_samples,initial_position,step_size,proposal_covariance=np.eye(1),thinning_rate=1):
@@ -452,7 +452,7 @@ def mala(model,number_of_samples,initial_position,step_size,proposal_covariance=
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
     return mcmc_samples
 
-def simple_manifold_mala(model,number_of_samples,initial_position,step_size,proposal_covariance=np.eye(1),thinning_rate=1):
+def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thinning_rate=1,regularization_constant=1e+6):
     """
     Simple Manifold Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix
     of MCMC samples, where N is the number of samples and q is the number of parameters. Proposals, x', are drawn
@@ -492,18 +492,6 @@ def simple_manifold_mala(model,number_of_samples,initial_position,step_size,prop
     # initialise the covariance proposal matrix
     number_of_parameters = len(initial_position)
 
-    # check if default value is used, and set to q x q identity
-    if np.array_equal(proposal_covariance, np.eye(1)):
-        proposal_covariance = np.eye(number_of_parameters)
-
-    if np.array_equal(proposal_covariance, np.eye(number_of_parameters)):
-        identity = True
-    else:
-        identity = False
-        proposal_cholesky = np.linalg.cholesky(proposal_covariance)
-
-    proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
-
     # initialise samples matrix and acceptance ratio counter
     accepted_moves = 0
     mcmc_samples = np.zeros((number_of_samples,number_of_parameters))
@@ -514,39 +502,54 @@ def simple_manifold_mala(model,number_of_samples,initial_position,step_size,prop
     current_position = initial_position
     current_log_likelihood = model.log_likelihood(current_position)
     current_log_likelihood_gradient = model.log_likelihood_gradient(current_position)
+    # we use the negative hessian of the positive log target
+    # and then regularize using the softabs metric, see Betancourt (2013)
     current_log_likelihood_hessian = -model.log_likelihood_hessian(current_position)
+    current_hessian_eigvals, current_hessian_eigvectors = np.linalg.eig(current_log_likelihood_hessian)
+    current_regularized_eigvals = current_hessian_eigvals*(1/np.tanh(regularization_constant*current_hessian_eigvals))
     # import pdb; pdb.set_trace()
-    current_hessian_cholesky = np.linalg.cholesky(current_log_likelihood_hessian)
+    current_sqrt_inverse_softabs_hessian = current_hessian_eigvectors.dot(np.diag(1/(np.sqrt(current_regularized_eigvals))))
+    current_inverse_softabs_hessian = current_sqrt_inverse_softabs_hessian.dot(np.transpose(current_sqrt_inverse_softabs_hessian))
+    current_softabs_hessian = current_hessian_eigvectors.dot(
+                              np.diag(current_regularized_eigvals)).dot(
+                              np.transpose(current_hessian_eigvectors))
+    # current_hessian_cholesky = np.linalg.cholesky(current_softabs_hessian)
 
     for iteration_index in range(1,number_of_iterations):
         # progress measure
         if iteration_index%(number_of_iterations//10)==0:
             print("Progress: ",100*iteration_index//number_of_iterations,'%')
 
-        if identity:
-            proposal = current_position + (step_size*current_log_likelihood_hessian.dot(current_log_likelihood_gradient)/2 +
-                                           np.sqrt(step_size)*current_hessian_cholesky.dot(np.random.normal(size=number_of_parameters)))
-        else:
-            proposal = current_position + (step_size*proposal_covariance.dot(current_log_likelihood_hessian).dot(current_log_likelihood_gradient)/2 +
-                                           np.sqrt(step_size)*proposal_cholesky.dot(current_hessian_cholesky).dot(np.random.normal(size=number_of_parameters)))
+        proposal = current_position + (step_size*current_inverse_softabs_hessian.dot(current_log_likelihood_gradient)/2 +
+                                           np.sqrt(step_size)*current_sqrt_inverse_softabs_hessian.dot(np.random.normal(size=number_of_parameters)))
 
         proposal_log_likelihood = model.log_likelihood(proposal)
         proposal_log_likelihood_gradient = model.log_likelihood_gradient(proposal)
+        # we use the negative hessian of the positive log target
+        # and then regularize using the softabs metric, see Betancourt (2013)
         proposal_log_likelihood_hessian = -model.log_likelihood_hessian(proposal)
-        # import pdb; pdb.set_trace()
-        proposal_hessian_cholesky = np.linalg.cholesky(proposal_log_likelihood_hessian)
+        proposal_hessian_eigvals, proposal_hessian_eigvectors = np.linalg.eig(proposal_log_likelihood_hessian)
+        proposal_regularized_eigvals = proposal_hessian_eigvals*(1/np.tanh(regularization_constant*proposal_hessian_eigvals))
+        proposal_sqrt_inverse_softabs_hessian = proposal_hessian_eigvectors.dot(np.diag(1/(np.sqrt(proposal_regularized_eigvals))))
+        proposal_inverse_softabs_hessian = proposal_sqrt_inverse_softabs_hessian.dot(np.transpose(proposal_sqrt_inverse_softabs_hessian))
+        proposal_softabs_hessian = proposal_hessian_eigvectors.dot(
+                                  np.diag(proposal_regularized_eigvals)).dot(
+                                  np.transpose(proposal_hessian_eigvectors))
 
-        forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_hessian).dot(current_log_likelihood_gradient)/2
-        backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_hessian).dot(proposal_log_likelihood_gradient)/2
+        forward_helper_variable = proposal - current_position - step_size*current_inverse_softabs_hessian.dot(current_log_likelihood_gradient)/2
+        backward_helper_variable = current_position - proposal - step_size*proposal_inverse_softabs_hessian.dot(proposal_log_likelihood_gradient)/2
 
-        transition_kernel_pdf_forward = -np.transpose(forward_helper_variable).dot(proposal_covariance_inverse).dot(forward_helper_variable)/(2*step_size)
-        transition_kernel_pdf_backward = -np.transpose(backward_helper_variable).dot(proposal_covariance_inverse).dot(backward_helper_variable)/(2*step_size)
+        transition_kernel_pdf_forward = 0.5*np.sum(np.log(current_regularized_eigvals))-np.transpose(forward_helper_variable).dot(current_softabs_hessian).dot(forward_helper_variable)/(2*step_size)
+        transition_kernel_pdf_backward = 0.5*np.sum(np.log(proposal_regularized_eigvals))-np.transpose(backward_helper_variable).dot(proposal_softabs_hessian).dot(backward_helper_variable)/(2*step_size)
 
         if(np.random.uniform() < np.exp(proposal_log_likelihood - transition_kernel_pdf_forward - current_log_likelihood + transition_kernel_pdf_backward)):
             current_position = proposal
             current_log_likelihood = proposal_log_likelihood
             current_log_likelihood_gradient = proposal_log_likelihood_gradient
-            current_log_likelihood_hessian = proposal_log_likelihood_hessian
+            current_regularized_eigvals = proposal_regularized_eigvals
+            current_sqrt_inverse_softabs_hessian = proposal_sqrt_inverse_softabs_hessian
+            current_inverse_softabs_hessian = proposal_inverse_softabs_hessian
+            current_softabs_hessian = proposal_softabs_hessian
             accepted_moves += 1
 
         if iteration_index%thinning_rate == 0:
