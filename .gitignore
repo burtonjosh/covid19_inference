@@ -14,4 +14,7 @@ output/
 *.npy
 
 # images
-*.png 
+*.png
+
+# Jupyter Notebook
+.ipynb_checkpoints
