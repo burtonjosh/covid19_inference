@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.stats as st
 from scipy.special import factorial
+import sys
 
 def random_walk(model,number_of_samples,initial_position,step_size,proposal_covariance=np.eye(1),thinning_rate=1):
     """
@@ -38,6 +39,14 @@ def random_walk(model,number_of_samples,initial_position,step_size,proposal_cova
         are the accepted positions in parameter space
 
     """
+    # make sure the model has necessary methods
+    try:
+        model.log_likelihood(initial_position)
+    except AttributeError:
+        print("Your model",type(model).__name__,"does not have the method 'log_likelihood'.",
+                                                "Please define it to use a random walk.")
+        sys.exit(1)
+
     # initialise the covariance proposal matrix
     number_of_parameters = len(initial_position)
 
@@ -122,6 +131,14 @@ def mala(model,number_of_samples,initial_position,step_size,proposal_covariance=
         are the accepted positions in parameter space
 
     """
+    # make sure the model has necessary methods
+    try:
+        model.log_likelihood_gradient(initial_position)
+    except AttributeError:
+        print("Your model",type(model).__name__,"does not have the method 'log_likelihood_gradient'.",
+                                                "Either define it, or use a random walk.")
+        sys.exit(1)
+
     # initialise the covariance proposal matrix
     number_of_parameters = len(initial_position)
 
@@ -183,10 +200,10 @@ def mala(model,number_of_samples,initial_position,step_size,proposal_covariance=
 
 def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thinning_rate=1,regularization_constant=1e+6):
     """
-    Simple Manifold Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix
+    Simplified Manifold Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix
     of MCMC samples, where N is the number of samples and q is the number of parameters. Proposals, x', are drawn
-    centered from the current position, x, by x + h/2*proposal_covariance*log_likelihood_gradient +
-    h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
+    centered from the current position, x, by x + h/2*softabs_hessian_inverse*log_likelihood_gradient +
+    h*sqrt(softabs_hessian_inverse)*normal(0,1), where h is the step_size (See Betancourt (2013))
 
     Parameters
     ----------
@@ -218,6 +235,21 @@ def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thin
         are the accepted positions in parameter space
 
     """
+    # make sure the model has necessary methods
+    try:
+        model.log_likelihood_gradient(initial_position)
+    except AttributeError:
+        print("Your model",type(model).__name__,"does not have the method 'log_likelihood_gradient'.",
+                                                "Either define it, or use a random walk.")
+        sys.exit(1)
+
+    try:
+        model.log_likelihood_hessian(initial_position)
+    except AttributeError:
+        print("Your model",type(model).__name__,"does not have the method 'log_likelihood_hessian'.",
+                                                "Either define it, or use a random walk or mala.")
+        sys.exit(1)
+
     # initialise the covariance proposal matrix
     number_of_parameters = len(initial_position)
 

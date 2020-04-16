@@ -287,7 +287,7 @@ class negative_binomial_data:
         """
         self.data = data
 
-    def log_likelihood(self, position):
+    def log_likelihood(self, position,negative=False):
         """
         A function returning the log likelihood of the negative binomial distribution for a given position in a
         Markov chain.
@@ -298,22 +298,30 @@ class negative_binomial_data:
         position : numpy array
             a 3x1 numpy array giving the current position in the Markov chain.
 
+        negative : bool
+            default value is False. When set to True, log_likelihood returns the negative log likelihood.
+
         Returns
         -------
 
         log_likelihood : double
-            the log of the hybrid rosenbrock likelihood function.
+            the log of the negative binomial likelihood function (or the negative of this, when 'negative' is
+            set to True).
 
         """
         if np.any(position < 0):
+            if negative==True:
+                return np.inf
             return -np.inf
         else:
-            day_numbers = np.arange(0,len(self.data))
-            mean = position[0]*np.exp(position[1]*day_numbers)
-            variance = position[2]*np.ones(len(day_numbers))
-            r = mean/(variance-1)
-            p = 1/variance
+            day_numbers = np.arange(len(self.data))
+            mean = np.exp(position[0])*np.exp(position[1]*day_numbers)
+            overdispersion = position[2]*np.ones(len(day_numbers))
+            r = mean/(overdispersion-1)
+            p = 1/overdispersion
             log_likelihood = np.sum(st.nbinom.logpmf(self.data,r,p))
+            if negative==True:
+                return -log_likelihood
             return log_likelihood
 
     def log_likelihood_gradient(self,position):
@@ -388,7 +396,7 @@ class poisson_data:
 
     def log_likelihood(self, position):
         """
-        A function returning the log likelihood of the negative binomial distribution for a given position in a
+        A function returning the log likelihood of the poisson data distribution for a given position in a
         Markov chain.
 
         Parameters
@@ -416,7 +424,7 @@ class poisson_data:
 
     def log_likelihood_gradient(self,position):
         """
-        A function returning the gradient of the log likelihood of the negative binomial distribution
+        A function returning the gradient of the log likelihood of the poisson data distribution
         for a given position in a Markov chain.
 
         Parameters
@@ -443,7 +451,7 @@ class poisson_data:
 
     def log_likelihood_hessian(self,position):
         """
-        A function returning the Hessian of the log likelihood of the negative binomial distribution
+        A function returning the Hessian of the log likelihood of the poisson data distribution
         for a given position in a Markov chain.
 
         Parameters
