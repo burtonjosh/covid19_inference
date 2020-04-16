@@ -375,7 +375,7 @@ class TestInference(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','pair_grid_random_walk_poisson.pdf'))
 
-    def test_random_walk_on_negative_binomial(self):
+    def xest_random_walk_on_negative_binomial(self):
         print("\nTesting random walk on a negative binomial distribution with data")
 
         # make some data
@@ -473,3 +473,73 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','time_series.pdf'))
+
+    def test_mala_on_negative_binomial(self):
+        print("\nTesting MALA on a negative binomial distribution with data")
+
+        # make some data
+        n = 20
+        beta = np.array([1,0.4,60])
+        days = np.zeros((n,2))
+        days[:,0] = 1
+        days[:,1] = np.arange(0,len(days[:,0]))
+        mu = np.exp(days.dot(beta[:2]))
+        od = beta[2]*np.ones(len(days[:,1]))
+        r=mu/(od-1)
+        p = 1/od
+        data = stats.nbinom.rvs(r,p)
+        print('data:', data)
+
+        negative_binomial_test = covid_models.negative_binomial_data(data)
+        number_of_samples = 100000
+        initial_position = np.array([ 1.13897153,  0.3940096 , 56.45188604])
+        step_size = 0.00005
+        # proposal_covariance = np.array([[ 1.99563291e-02, -1.18693670e-03,  5.86064693e-04],
+        #                                 [-1.18693670e-03,  8.29099377e-05, -2.06102988e-06],
+        #                                 [ 5.86064693e-04, -2.06102988e-06,  1.24682610e-01]])
+        thinning_rate = 1
+
+        output = covid_inference.mala(negative_binomial_test,
+                                      number_of_samples,
+                                      initial_position,
+                                      step_size,
+                                      thinning_rate=thinning_rate)
+
+        proposal_covariance = np.cov(output.T)
+        step_size = 3.0
+        output =  covid_inference.mala(negative_binomial_test,
+                                      number_of_samples,
+                                      initial_position,
+                                      step_size,
+                                      proposal_covariance=proposal_covariance,
+                                      thinning_rate=thinning_rate)
+
+        # test that mean and variance inferences are within 0.01 of the ground truth
+        # np.testing.assert_allclose(np.mean(output[:,0]),mean[0],0.1)
+        # np.testing.assert_allclose(np.var(output[:,0]),covariance_matrix[0,0],0.1)
+
+        # test that we get the expected number of samples
+        # np.testing.assert_almost_equal(output.shape[0],number_of_samples)
+        # np.testing.assert_almost_equal(output.shape[1],len(initial_position))
+        print('x_1 mean:',np.mean(output[:,0]))
+        print('x_2 mean:',np.mean(output[:,1]))
+        print('x_3 mean:',np.mean(output[:,2]))
+
+        plt.clf()
+        fig, ax = plt.subplots(3,1,figsize=(10,10))
+        for i in range(output.shape[1]):
+            ax[i].plot(output[:,i])
+            ax[i].set_xlabel('$\\beta_{}$'.format(i))
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','traceplots_mala_negative_binomial.pdf'))
+        #
+        # # plot a pairgrid
+        plt.clf()
+        g = sns.PairGrid(pd.DataFrame(output[:-1:10],columns=['$x_1$','$x_2$','$x_3$']))
+        g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
+        g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
+        g = g.map_diag(sns.distplot,color='#20948B')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','pair_grid_mala_negative_binomial.pdf'))

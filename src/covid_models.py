@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.stats as st
-from scipy.special import factorial
+from scipy.special import factorial, polygamma
 
 class normal:
     """
@@ -342,14 +342,26 @@ class negative_binomial_data:
             the gradient of the log of the multivariate normal likelihood function.
 
         """
-        pass
-        # day_numbers = np.arange(0,len(data))
-        # mean = position[0]*np.exp(position[1]*day_numbers)
-        # variance = position[2]*np.ones(len(day_numbers))
-        # r = mean/(variance-1)
-        # p = 1/variance
-        # log_likelihood = np.sum(st.nbinom.logpmf(self.data,r,p))
-        # return log_likelihood_gradient
+        day_numbers = np.arange(len(self.data))
+
+        dx = np.sum((np.exp(position[0] + position[1]*day_numbers)*(np.log(1/position[2]) +
+                    polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                    polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)))) / (
+                    (position[2] - 1) ))
+
+        dy = np.sum((day_numbers*np.exp(position[0] + position[1]*day_numbers)*(np.log(1/position[2]) +
+                    polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                    polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)))) / (
+                    (position[2] - 1) ))
+
+        dz = np.sum((self.data*(position[2]-1) - np.exp(position[0] + position[1]*day_numbers)*(position[2]-1 + position[2]*np.log(1/position[2]) +
+                    position[2]*polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                    position[2]*polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)))) / (
+                    np.power((position[2]-1),2)*position[2] ))
+
+        log_likelihood_gradient = np.array([dx,dy,dz])
+
+        return log_likelihood_gradient
 
     def log_likelihood_hessian(self,position):
         """
