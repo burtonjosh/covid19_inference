@@ -4,7 +4,7 @@ MCMC methods to infer parameters for doubling rates of the spread of COVID-19
 ## File structure
 
 - `/src/` contains the main Python module for this repository, `covid_inference.py`. It contains the model classes and MCMC algorithms.
-- `/test/` contains the tests for the functions in 'covid_inference.py'.
+- `/test/` contains the tests for the functions in `covid_inference.py`, and the Jupyter notebook `data_inference_example.ipynb`, which illustrates how to use the code.
 
 ## Dependencies (tested on Ubuntu 18.04):
 
