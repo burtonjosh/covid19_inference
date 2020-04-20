@@ -381,8 +381,56 @@ class negative_binomial_data:
             the Hessian of the log of the multivariate normal likelihood function.
 
         """
-        pass
-        # return log_likelihood_hessian
+        day_numbers = np.arange(len(self.data))
+
+        dxdx = np.sum((np.exp(position[0] + position[1]*day_numbers)*((position[2]-1)*(np.log(1/position[2]) +
+                       polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))) +
+                       np.exp(position[0] + position[1]*day_numbers)*(polygamma(1,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(1,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))))) / (
+                       np.power((position[2] - 1),2) ))
+
+        dydy = np.sum((np.exp(position[0] + position[1]*day_numbers)*np.power(day_numbers,2)*((position[2]-1)*(np.log(1/position[2]) +
+                       polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))) +
+                       np.exp(position[0] + position[1]*day_numbers)*(polygamma(1,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(1,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))))) / (
+                       np.power((position[2] - 1),2) ))
+
+        dzdz  = np.sum((-self.data*np.power((position[2]-1),2)*(2*position[2]-1) +
+                        (position[2]-1)*np.exp(position[0] + position[1]*day_numbers)*(1-4*position[2]+3*np.power(position[2],2) +
+                         2*np.power(position[2],2)*np.log(1/position[2]) + 2*np.power(position[2],2)*(polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                         polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)))) +
+                         np.power(position[2],2)*np.exp(2*(position[0] + position[1]*day_numbers))*(polygamma(1,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                         polygamma(1,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)))) / (
+                         np.power((position[2]-1),4)*np.power(position[2],2) ))
+
+        dxdy = np.sum((np.exp(position[0] + position[1]*day_numbers)*day_numbers*((position[2]-1)*(np.log(1/position[2]) +
+                       polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))) +
+                       np.exp(position[0] + position[1]*day_numbers)*(polygamma(1,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(1,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))))) / (
+                       np.power((position[2] - 1),2) ))
+
+        dxdz = np.sum((np.exp(position[0] + position[1]*day_numbers)*(-1*(position[2]-1)*(position[2]-1+position[2]*np.log(1/position[2]) +
+                       position[2]*polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       position[2]*polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))) -
+                       position[2]*np.exp(position[0] + position[1]*day_numbers)*(polygamma(1,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(1,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))))) / (
+                       position[2]*np.power((position[2] - 1),3) ))
+
+        dydz = np.sum((np.exp(position[0] + position[1]*day_numbers)*day_numbers*(-1*(position[2]-1)*(position[2]-1+position[2]*np.log(1/position[2]) +
+                       position[2]*polygamma(0,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       position[2]*polygamma(0,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))) -
+                       position[2]*np.exp(position[0] + position[1]*day_numbers)*(polygamma(1,self.data + np.exp(position[0] + position[1]*day_numbers)/(position[2]-1)) -
+                       polygamma(1,np.exp(position[0] + position[1]*day_numbers)/(position[2]-1))))) / (
+                       position[2]*np.power((position[2] - 1),3) ))
+
+        log_likelihood_hessian = np.array([[dxdx,dxdy,dxdz],
+                                           [dxdy,dydy,dydz],
+                                           [dxdz,dydz,dzdz]])
+
+        return log_likelihood_hessian
 
 class poisson_data:
     """

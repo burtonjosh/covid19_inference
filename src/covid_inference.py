@@ -266,6 +266,7 @@ def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thin
     # we use the negative hessian of the positive log target
     # and then regularize using the softabs metric, see Betancourt (2013)
     current_log_likelihood_hessian = -model.log_likelihood_hessian(current_position)
+    # import pdb; pdb.set_trace()
     current_hessian_eigvals, current_hessian_eigvectors = np.linalg.eig(current_log_likelihood_hessian)
     current_regularized_eigvals = current_hessian_eigvals*(1/np.tanh(regularization_constant*current_hessian_eigvals))
     # import pdb; pdb.set_trace()
@@ -285,10 +286,18 @@ def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thin
                                            np.sqrt(step_size)*current_sqrt_inverse_softabs_hessian.dot(np.random.normal(size=number_of_parameters)))
 
         proposal_log_likelihood = model.log_likelihood(proposal)
+        if proposal_log_likelihood == -np.inf:
+            if iteration_index%thinning_rate == 0:
+                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+            continue
+
         proposal_log_likelihood_gradient = model.log_likelihood_gradient(proposal)
         # we use the negative hessian of the positive log target
         # and then regularize using the softabs metric, see Betancourt (2013)
         proposal_log_likelihood_hessian = -model.log_likelihood_hessian(proposal)
+
+        # import pdb; pdb.set_trace()
+
         proposal_hessian_eigvals, proposal_hessian_eigvectors = np.linalg.eig(proposal_log_likelihood_hessian)
         proposal_regularized_eigvals = proposal_hessian_eigvals*(1/np.tanh(regularization_constant*proposal_hessian_eigvals))
         proposal_sqrt_inverse_softabs_hessian = proposal_hessian_eigvectors.dot(np.diag(1/(np.sqrt(proposal_regularized_eigvals))))
