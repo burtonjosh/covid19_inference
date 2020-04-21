@@ -235,8 +235,8 @@ class TestInference(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','pair_grid_mala_rosenbrock.pdf'))
 
-    def xest_simple_manifold_mala_on_multivariate_normal(self):
-        print("\nTesting simple manifold MALA on a multivariate normal distribution")
+    def xest_simplified_manifold_mala_on_multivariate_normal(self):
+        print("\nTesting simplified manifold MALA on a multivariate normal distribution")
         mean = np.array([6,2,18])
         covariance_matrix = np.eye(3)
 
@@ -247,7 +247,7 @@ class TestInference(unittest.TestCase):
         # proposal_covariance = np.array([[1,0.5],[0.5,1]])
         thinning_rate = 10
 
-        output = covid_inference.simple_manifold_mala(multivariate_normal_test,
+        output = covid_inference.simplified_manifold_mala(multivariate_normal_test,
                                              number_of_samples,
                                              initial_position,
                                              step_size,
@@ -287,7 +287,7 @@ class TestInference(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','multivariate_normal_random_walk_histogram.pdf'))
 
-    def xest_simple_manifold_mala_on_rosenbrock(self):
+    def xest_simplified_manifold_mala_on_rosenbrock(self):
         print("\nTesting smMALA on a hybrid Rosenbrock (2,3) distribution")
         mean = 1
         shape = np.array([.05,5,5,5,5])
@@ -298,7 +298,7 @@ class TestInference(unittest.TestCase):
         step_size = 0.32
         thinning_rate = 1
 
-        output = covid_inference.simple_manifold_mala(rosenbrock_test,
+        output = covid_inference.simplified_manifold_mala(rosenbrock_test,
                                                       number_of_samples,
                                                       initial_position,
                                                       step_size,
@@ -567,7 +567,7 @@ class TestInference(unittest.TestCase):
         #                                 [ 5.86064693e-04, -2.06102988e-06,  1.24682610e-01]])
         thinning_rate = 1
 
-        output = covid_inference.simple_manifold_mala(negative_binomial_test,
+        output = covid_inference.simplified_manifold_mala(negative_binomial_test,
                                                       number_of_samples,
                                                       initial_position,
                                                       step_size,

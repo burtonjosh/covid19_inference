@@ -197,7 +197,7 @@ def mala(model,number_of_samples,initial_position,step_size,proposal_covariance=
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
     return mcmc_samples
 
-def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thinning_rate=1,regularization_constant=1e+6):
+def simplified_manifold_mala(model,number_of_samples,initial_position,step_size,thinning_rate=1,regularization_constant=1e+6):
     """
     Simplified Manifold Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix
     of MCMC samples, where N is the number of samples and q is the number of parameters. Proposals, x', are drawn
