@@ -309,7 +309,7 @@ class negative_binomial_data:
             set to True).
 
         """
-        if np.any(position < 0):
+        if np.any(position < 0) or position[2] < 1:
             if negative==True:
                 return np.inf
             return -np.inf

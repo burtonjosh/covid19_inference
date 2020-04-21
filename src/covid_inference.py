@@ -81,7 +81,6 @@ def random_walk(model,number_of_samples,initial_position,step_size,proposal_cova
             proposal = current_position + step_size*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
 
         proposal_log_likelihood = model.log_likelihood(proposal)
-        # import pdb; pdb.set_trace()
 
         # accept-reject step
         if(np.random.uniform() < np.exp(proposal_log_likelihood - current_log_likelihood)):
@@ -259,17 +258,15 @@ def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thin
     mcmc_samples[0] = initial_position
     number_of_iterations = number_of_samples*thinning_rate
 
-    # initial markov chain
+    # initialise markov chain
     current_position = initial_position
     current_log_likelihood = model.log_likelihood(current_position)
     current_log_likelihood_gradient = model.log_likelihood_gradient(current_position)
     # we use the negative hessian of the positive log target
     # and then regularize using the softabs metric, see Betancourt (2013)
     current_log_likelihood_hessian = -model.log_likelihood_hessian(current_position)
-    # import pdb; pdb.set_trace()
     current_hessian_eigvals, current_hessian_eigvectors = np.linalg.eig(current_log_likelihood_hessian)
     current_regularized_eigvals = current_hessian_eigvals*(1/np.tanh(regularization_constant*current_hessian_eigvals))
-    # import pdb; pdb.set_trace()
     current_sqrt_inverse_softabs_hessian = current_hessian_eigvectors.dot(np.diag(1/(np.sqrt(current_regularized_eigvals))))
     current_inverse_softabs_hessian = current_sqrt_inverse_softabs_hessian.dot(np.transpose(current_sqrt_inverse_softabs_hessian))
     current_softabs_hessian = current_hessian_eigvectors.dot(
@@ -295,8 +292,6 @@ def simple_manifold_mala(model,number_of_samples,initial_position,step_size,thin
         # we use the negative hessian of the positive log target
         # and then regularize using the softabs metric, see Betancourt (2013)
         proposal_log_likelihood_hessian = -model.log_likelihood_hessian(proposal)
-
-        # import pdb; pdb.set_trace()
 
         proposal_hessian_eigvals, proposal_hessian_eigvectors = np.linalg.eig(proposal_log_likelihood_hessian)
         proposal_regularized_eigvals = proposal_hessian_eigvals*(1/np.tanh(regularization_constant*proposal_hessian_eigvals))
