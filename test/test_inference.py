@@ -12,6 +12,7 @@ font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
 from scipy import stats
+from scipy.integrate import solve_ivp
 import multiprocessing as mp
 import multiprocessing.pool as mp_pool
 # make sure we find the right python module
@@ -541,7 +542,7 @@ class TestInference(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','pair_grid_mala_negative_binomial.pdf'))
 
-    def test_sm_mala_on_negative_binomial(self):
+    def xest_sm_mala_on_negative_binomial(self):
         print("\nTesting smMALA on a negative binomial distribution with data")
 
         # make some data
@@ -603,3 +604,55 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','pair_grid_sm_mala_negative_binomial.pdf'))
+
+
+    def test_delayed_model_class(self):
+        print("\nTesting random walk on Katrina delay model")
+        data = np.genfromtxt('datafit_EN.csv', delimiter=",")[:,0]
+        delayed_model = covid_models.delayed_compartment_model(data)
+
+        number_of_samples = 50000
+        initial_position = np.array([0.7,0.4,0.1,2.0,10.0])
+        step_size = 0.0032
+        proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0]))
+        thinning_rate = 1
+
+        output = covid_inference.random_walk(delayed_model,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             proposal_covariance=proposal_covariance,
+                                             thinning_rate=thinning_rate)
+
+        proposal_covariance = np.cov(output[number_of_samples//2:].T)
+        initial_position = np.mean(output[number_of_samples//2:],axis=0)
+        print('initial position',initial_position)
+        print('covariance matrix',proposal_covariance)
+
+        step_size = 1.8
+        output = covid_inference.random_walk(delayed_model,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             proposal_covariance=proposal_covariance,
+                                             thinning_rate=thinning_rate)
+
+        print(np.mean(output,axis=0))
+
+        plt.clf()
+        fig, ax = plt.subplots(5,1,figsize=(10,10))
+        for i in range(output.shape[1]):
+            ax[i].plot(output[:,i])
+            ax[i].set_xlabel('$\\theta_{}$'.format(i))
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','traceplots_random_walk_katrina.pdf'))
+        # plot a pairgrid
+        plt.clf()
+        g = sns.PairGrid(pd.DataFrame(output,columns=['$\\theta_1$','$\\theta_2$','$\\theta_3$','$\\theta_4$','$\\theta_5$']),diag_sharey=False)
+        g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
+        g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
+        g = g.map_diag(sns.distplot,color='#20948B')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','pair_grid_random_walk_katrina.pdf'))

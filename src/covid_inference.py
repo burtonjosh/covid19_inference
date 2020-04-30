@@ -71,6 +71,7 @@ def random_walk(model,number_of_samples,initial_position,step_size,proposal_cova
     current_log_likelihood = model.log_likelihood(current_position)
 
     for iteration_index in range(1,number_of_iterations):
+        # import pdb; pdb.set_trace()
         # progress measure
         if iteration_index%(number_of_iterations//10)==0:
             print("Progress: ",100*iteration_index//number_of_iterations,'%')
