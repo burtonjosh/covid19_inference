@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns; sns.set(); sns.set_style("ticks", {'axes.spines.right': False,
                                                           'axes.spines.top': False})
 import matplotlib as mpl
-mpl.use('Agg')
+# mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
 font = {'size'   : 10}
@@ -606,11 +606,10 @@ class TestInference(unittest.TestCase):
                                  'output','pair_grid_sm_mala_negative_binomial.pdf'))
 
 
-    def test_delayed_model_class(self):
+    def xest_delayed_model_class(self):
         print("\nTesting random walk on Katrina delay model")
-        data = np.genfromtxt('datafit_EN.csv', delimiter=",")[:,0]
-        delayed_model = covid_models.delayed_compartment_model(data)
-
+        # data = np.genfromtxt('datafit_EN.csv', delimiter=",")[:,0]
+        delayed_model = covid_models.delayed_compartment_model()
         number_of_samples = 50000
         initial_position = np.array([0.7,0.4,0.1,2.0,10.0])
         step_size = 0.0032
@@ -638,21 +637,182 @@ class TestInference(unittest.TestCase):
                                              thinning_rate=thinning_rate)
 
         print(np.mean(output,axis=0))
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','katrina_random_walk_output_real_dates.npy'),
+        #          output)
+        #
+        # plt.clf()
+        # fig, ax = plt.subplots(5,1,figsize=(10,10))
+        # for i in range(output.shape[1]):
+        #     ax[i].plot(output[:,i])
+        #     ax[i].set_xlabel('$\\theta_{}$'.format(i))
+        # plt.tight_layout()
+        # plt.savefig(os.path.join(os.path.dirname(__file__),
+        #                          'output','traceplots_random_walk_katrina.pdf'))
+        # # plot a pairgrid
+        # plt.clf()
+        # g = sns.PairGrid(pd.DataFrame(output,columns=['$\\theta_1$','$\\theta_2$','$\\theta_3$','$\\theta_4$','$\\theta_5$']),diag_sharey=False)
+        # g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
+        # g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
+        # g = g.map_diag(sns.distplot,color='#20948B')
+        # plt.tight_layout()
+        # plt.savefig(os.path.join(os.path.dirname(__file__),
+        #                          'output','pair_grid_random_walk_katrina.pdf'))
 
-        plt.clf()
-        fig, ax = plt.subplots(5,1,figsize=(10,10))
-        for i in range(output.shape[1]):
-            ax[i].plot(output[:,i])
-            ax[i].set_xlabel('$\\theta_{}$'.format(i))
+    def test_katrina_predictive_posterior(self):
+        print("\nCalculating predictive posterior distribution")
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','')
+        posterior_samples = np.load(saving_path + 'katrina_random_walk_output_fit_all.npy')
+        hidata = np.genfromtxt('../test/data/datafit_EN.csv', delimiter=",")[:,0]
+        hpdata = np.genfromtxt('../test/data/datafit_EN.csv', delimiter=",")[:,1]
+        updata = np.genfromtxt('../test/data/datafit_EN.csv', delimiter=",")[:,2]
+        didata = np.genfromtxt('../test/data/datafit_deaths.csv', delimiter=",")[:,7]
+        delayed_model = covid_models.delayed_compartment_model()
+        test_samples = posterior_samples[::100]
+        number_of_samples = test_samples.shape[0]
+        time_range = [0,150]
+        number_of_days = time_range[1]+1
+        predicted_states = np.zeros((number_of_samples,21,number_of_days))
+        rIH = 0.4
+
+        for sample_index, sample in enumerate(test_samples):
+            predicted_states[sample_index,:,:] = delayed_model.solve_ode(sample,time_range)
+            if sample_index%(number_of_samples//10)==0:
+                print("Progress: ",100*sample_index//number_of_samples,'%')
+
+        # posterior hospital incidence
+        ys = np.zeros((10,number_of_days,number_of_samples))
+        for day in np.arange(1,number_of_days):
+            # import pdb; pdb.set_trace()
+            r = rIH*predicted_states[:,5,day]/(test_samples[:,4]-1)
+            p = 1/test_samples[:,4]
+            ys[0,day,:] = np.random.negative_binomial(r,p)
+            r = np.sum(predicted_states[:,[7,8,9,10,11,20],day],axis=1)/(test_samples[:,4]-1)
+            ys[1,day,:] = np.random.negative_binomial(r,p)
+            r = np.sum(predicted_states[:,[9,10],day],axis=1)/(test_samples[:,4]-1)
+            ys[2,day,:] = np.random.negative_binomial(r,p)
+            r = (predicted_states[:,20,day]*test_samples[:,6] + predicted_states[:,9,day]/11.1)/(test_samples[:,4]-1)
+            ys[3,day,:] = np.random.negative_binomial(r,p)
+
+        # hospital incidence
+        mean = np.percentile(ys[0],50,axis=1)
+        lower_error = np.percentile(ys[0],2.5,axis=1)
+        upper_error = np.percentile(ys[0],97.5,axis=1)
+
+        plt.figure(figsize=(10,5))
+        plt.scatter(np.arange(37,78),hidata,color='black',s=5)
+        plt.plot(np.arange(0,number_of_days),lower_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),upper_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),mean,color='#20948B',alpha=0.4)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','traceplots_random_walk_katrina.pdf'))
-        # plot a pairgrid
-        plt.clf()
-        g = sns.PairGrid(pd.DataFrame(output,columns=['$\\theta_1$','$\\theta_2$','$\\theta_3$','$\\theta_4$','$\\theta_5$']),diag_sharey=False)
-        g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
-        g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
-        g = g.map_diag(sns.distplot,color='#20948B')
+                    'output','posterior_hospital_incidence_fitall.pdf'))
+
+        # hospital prevalence
+        mean = np.percentile(ys[1],50,axis=1)
+        lower_error = np.percentile(ys[1],2.5,axis=1)
+        upper_error = np.percentile(ys[1],97.5,axis=1)
+
+        plt.figure(figsize=(10,5))
+        plt.scatter(np.arange(37,78),hpdata,color='black',s=5)
+        plt.plot(np.arange(0,number_of_days),lower_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),upper_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),mean,color='#20948B',alpha=0.4)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','pair_grid_random_walk_katrina.pdf'))
+                    'output','posterior_hospital_prevalence_fitall.pdf'))
+
+        # icu prevalence
+        mean = np.percentile(ys[2],50,axis=1)
+        lower_error = np.percentile(ys[2],2.5,axis=1)
+        upper_error = np.percentile(ys[2],97.5,axis=1)
+
+        plt.figure(figsize=(10,5))
+        plt.scatter(np.arange(37,78),updata,color='black',s=5)
+        plt.plot(np.arange(0,number_of_days),lower_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),upper_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),mean,color='#20948B',alpha=0.4)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                    'output','posterior_icu_prevalence_fitall.pdf'))
+
+        # death incidence
+        mean = np.percentile(ys[3],50,axis=1)
+        lower_error = np.percentile(ys[3],2.5,axis=1)
+        upper_error = np.percentile(ys[3],97.5,axis=1)
+
+        plt.figure(figsize=(10,5))
+        # import pdb; pdb.set_trace()
+        plt.scatter(np.arange(46,46+29),didata[:29],color='black',s=5)
+        plt.plot(np.arange(0,number_of_days),lower_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),upper_error,color='#20948B',linestyle='--',alpha=0.4)
+        plt.plot(np.arange(0,number_of_days),mean,color='#20948B',alpha=0.4)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                    'output','posterior_death_incidence_fitall.pdf'))
+
+    def xest_class(self):
+        delayed_model = covid_models.delayed_compartment_model(fit=['hospital_prevalence','hospital_incidence','icu_prevalence','death_incidence'])
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','')
+        output = np.load(saving_path + 'katrina_random_walk_output_fit_all.npy')
+
+        # plt.clf()
+        # g = sns.PairGrid(pd.DataFrame(output[::10]),diag_sharey=False)
+        # g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
+        # g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
+        # g = g.map_diag(sns.distplot,color='#20948B')
+        # plt.tight_layout()
+        # plt.show()
+        number_of_samples = 200000
+        # initial_position = np.array([0.7,0.4,0.1,2.0,10.0,0.5,0.5,0.5,0.5])
+        # step_size = 0.001
+        # # proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0,1.0,1.0,1.0,1.0]))
+        thinning_rate = 1
+        #
+        # # output = covid_inference.random_walk(delayed_model,
+        # #                                      number_of_samples,
+        # #                                      initial_position,
+        # #                                      step_size,
+        # #                                      proposal_covariance=proposal_covariance,
+        # #                                      thinning_rate=thinning_rate)
+        #
+        proposal_covariance = np.cov(output.T)
+        initial_position = np.mean(output,axis=0)
+        print('initial position',initial_position)
+        print('covariance matrix',proposal_covariance)
+
+        step_size = 0.7
+        output = covid_inference.random_walk(delayed_model,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             proposal_covariance=proposal_covariance,
+                                             thinning_rate=thinning_rate)
+
+        print(np.mean(output,axis=0))
+        #
+        # plt.clf()
+        # fig, ax = plt.subplots(9,1,figsize=(10,10))
+        # for i in range(output.shape[1]):
+        #     ax[i].plot(output[:,i])
+        #     ax[i].set_xlabel('$\\theta_{}$'.format(i))
+        # plt.tight_layout()
+        # plt.show()
+        # # plt.savefig(os.path.join(os.path.dirname(__file__),
+        # #                          'output','traceplots_random_walk_katrina_fitall.pdf'))
+        # # plot a pairgrid
+        # save = int(input('do you want to see the pair plot? (0 is no, 1 is yes):\n'))
+        # if save:
+        #     plt.clf()
+        #     g = sns.PairGrid(pd.DataFrame(output),diag_sharey=False)
+        #     g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
+        #     g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
+        #     g = g.map_diag(sns.distplot,color='#20948B')
+        #     plt.tight_layout()
+        #     plt.show()
+        # # plt.savefig(os.path.join(os.path.dirname(__file__),
+        # #                          'output','pair_grid_random_walk_katrina_fitall.pdf'))
+        #
+        # save = int(input('do you want to save? (0 is no, 1 is yes):\n'))
+        # if save:
+        np.save(os.path.join(os.path.dirname(__file__), 'output','katrina_random_walk_output_fit_all.npy'),
+                 output)
