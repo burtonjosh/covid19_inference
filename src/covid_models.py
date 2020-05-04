@@ -901,6 +901,7 @@ class delayed_compartment_model:
                 log_likelihood += np.sum(st.nbinom.logpmf(self.death_data,
                                                           (rHR*Yall[20,self.death_indices] + rCD*Yall[9,self.death_indices])/(sigma_0-1),
                                                           1/sigma_0))
+            import pdb; pdb.set_trace()
             return log_likelihood
 
     def log_likelihood_gradient(self,position):
