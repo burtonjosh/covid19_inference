@@ -728,7 +728,7 @@ class delayed_compartment_model:
                              Y0,
                              [0,control_dates[0]],
                              [rates,probabilities,transmission_rates])
-        sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
+        sol = de.solve(prob,saveat=t_eval)
         Ttemp = sol.t
         Ytemp = np.array(sol.u)
         Yt[1] = Ytemp[-1]
@@ -742,7 +742,7 @@ class delayed_compartment_model:
                                  Y0,
                                  time_range,
                                  [rates,probabilities,transmission_rates])
-            sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
+            sol = de.solve(prob,saveat=t_eval)
             Ttemp = sol.t
             Ytemp = np.array(sol.u)
             Yt[ic+2] = np.array(Ytemp)[-1]
@@ -797,7 +797,7 @@ class delayed_compartment_model:
             t_eval = np.linspace(0,self.control_dates[0],int(self.control_dates[0])+1)
             p = [rates,probabilities,transmission_rates]
             prob = de.ODEProblem(self.delayed_ode,Y0,time_range,p)
-            sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
+            sol = de.solve(prob,saveat=t_eval)
             Ttemp = sol.t
             Ytemp = np.array(sol.u)
             Yt[1] = Ytemp[-1]
@@ -811,7 +811,7 @@ class delayed_compartment_model:
                                      Yt[ic+1],
                                      time_range,
                                      p)
-                sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
+                sol = de.solve(prob,saveat=t_eval)
                 Ttemp = sol.t
                 Ytemp = np.array(sol.u)
                 Yt[ic+2] = Ytemp[-1]

@@ -702,7 +702,7 @@ class TestInference(unittest.TestCase):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
         output = np.load(saving_path + 'katrina_random_walk_output_fit_all.npy')
 
-        number_of_samples = 2000
+        number_of_samples = 1000
         initial_position = np.array([0.7,0.4,0.1,2.0,10.0,0.5,0.5,0.5,0.5])
         step_size = 0.001
         proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0,1.0,1.0,1.0,1.0]))
