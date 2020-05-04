@@ -3,7 +3,7 @@ import scipy.stats as st
 from scipy.special import factorial, polygamma
 from scipy.integrate import solve_ivp
 import numba
-from numba import jitclass, float64, int64
+from numba import jit
 import sys
 
 class normal:
@@ -440,7 +440,10 @@ class delayed_compartment_model:
     """
     # TODO:
     """
-    def __init__(self,region='EN',fit=['hospital_incidence']):
+    def __init__(self,region='EN',fit=['hospital_prevalence',
+                                       'hospital_incidence',
+                                       'icu_prevalence',
+                                       'death_incidence']):
         """
         Constructor function for the delayed_compartment_model class.
 
@@ -808,6 +811,7 @@ class delayed_compartment_model:
             Yt[ic+2] = np.array([item[-1] for item in Ytemp])
             Tall = np.append(Tall,Ttemp[1:])
             Yall = np.append(Yall,np.array([item[1:] for item in Ytemp]),axis=-1)
+            # import pdb; pdb.set_trace()
 
         return Yall
 
@@ -898,6 +902,7 @@ class delayed_compartment_model:
             # import pdb; pdb.set_trace()
 
             if 'death_incidence' in self.fit:
+                # import pdb; pdb.set_trace()
                 log_likelihood += np.sum(st.nbinom.logpmf(self.death_data,
                                                           (rHR*Yall[20,self.death_indices] + rCD*Yall[9,self.death_indices])/(sigma_0-1),
                                                           1/sigma_0))
