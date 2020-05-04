@@ -808,7 +808,7 @@ class delayed_compartment_model:
                 t_eval = np.linspace(self.control_dates[ic],self.control_dates[ic+1],int(self.control_dates[ic+1]-self.control_dates[ic])+1)
                 transmission_rates[0] = reduced_beta[ic]
                 prob = de.ODEProblem(delayed_ode,
-                                     Y0,
+                                     Yt[ic+1],
                                      time_range,
                                      p)
                 sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
