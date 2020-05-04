@@ -1,10 +1,11 @@
 import numpy as np
 import scipy.stats as st
 from scipy.special import factorial, polygamma
-from scipy.integrate import solve_ivp
 import numba
 from numba import jit
 import sys
+from julia import Main
+from diffeqpy import de
 
 class normal:
     """
@@ -436,6 +437,32 @@ class negative_binomial_data:
 
         return log_likelihood_hessian
 
+delayed_ode = Main.eval("""
+function delayed_ode(du,u,p,t)
+  rates, probabilities, transmission_rates = p
+  du[1]  = -u[1] * transmission_rates[1] * ( transmission_rates[2]*(u[2]+u[3]+u[4]+u[13]+u[14]+u[15]+u[16]) + (u[5]+u[6]+u[7]) ) / u[20]
+  du[2]  = (1-probabilities[1]) * u[1] * transmission_rates[1] * ( transmission_rates[2]*(u[2]+u[3]+u[4]+u[13]+u[14]+u[15]+u[16]) + (u[5]+u[6]+u[7]) ) / u[20] - rates[1]*u[2]
+  du[3]  = rates[1]*u[2] - rates[1]*u[3]
+  du[4]  = rates[1]*u[3] - rates[1]*u[4]
+  du[5]  = probabilities[2]*rates[1]*u[4] - rates[2]*u[5]
+  du[6]  = rates[2]*u[5] - rates[2]*u[6]
+  du[7]  = (1-probabilities[2])*rates[1]*u[4] - rates[3]*u[7]
+  du[8]  = probabilities[3]*rates[2]*u[6] - rates[4]*u[8]
+  du[9]  = (1-probabilities[3]-probabilities[5])*rates[2]*u[6] - rates[5]*u[9]
+  du[10] = probabilities[4]*rates[4]*u[8] - rates[6]*u[10]
+  du[11] = (1-probabilities[4])*rates[4]*u[8] - rates[7]*u[11]
+  du[12] = rates[7]*u[11] - rates[8]*u[12]
+  du[13] = probabilities[1] * u[1] * transmission_rates[1] * ( transmission_rates[2]*(u[2]+u[3]+u[4]+u[13]+u[14]+u[15]+u[16]) + (u[5]+u[6]+u[7]) ) / u[20] - rates[1]*u[13]
+  du[14] = rates[1]*u[13] - rates[1]*u[14]
+  du[15] = rates[1]*u[14] - rates[1]*u[15]
+  du[16] = rates[1]*u[15] - rates[9]*u[16]
+  du[17] = rates[3]*u[7] + rates[5]*u[9] + rates[6]*u[10] + rates[9]*u[16]
+  du[18] = rates[6]*u[10] + rates[5]*u[21] - rates[10]*u[18]
+  du[19] = rates[10]*u[18]
+  du[20] = -rates[6]*u[10] - rates[5]*u[21]
+  du[21] = probabilities[5]*rates[2]*u[6] - rates[5]*u[21]
+end""")
+
 class delayed_compartment_model:
     """
     # TODO:
@@ -474,14 +501,14 @@ class delayed_compartment_model:
         self.fit = fit
         self.region_specific_initialisation()
         self.number_of_states = 21
-        self.control_dates = np.array([10,43,48,89])
+        self.control_dates = np.array([10.,43.,48.,89.])
 
         alternative_parameters = 0
         # set rates
-        Ea = 3
+        Ea = 3.
         rE1 = 1/5.5
         rE = rE1*Ea
-        IHa = 2
+        IHa = 2.
         rIH1 = 1/5
         rIH = rIH1*IHa
         rIR = 1/3.5
@@ -524,7 +551,7 @@ class delayed_compartment_model:
         # Initial conditions
         log_initial_infectious = np.log(0.1)
         self.initial_state = np.array([self.initial_population-np.exp(log_initial_infectious),(1-pA)*np.exp(log_initial_infectious),
-                                       0,0,0,0,0,0,0,0,0,0,pA*np.exp(log_initial_infectious),0,0,0,0,0,0,self.initial_population,0])
+                                       0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,pA*np.exp(log_initial_infectious),0.,0.,0.,0.,0.,0.,self.initial_population,0.])
 
     def region_specific_initialisation(self):
         """
@@ -547,7 +574,7 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(46,
                                                          46+len(self.death_data))
-            self.initial_population = 56000000
+            self.initial_population = 56000000.
 
         elif self.region == 'EE':
             # set data
@@ -565,7 +592,7 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(self.data_first_day,
                                                          self.data_first_day+len(self.death_data))
-            self.initial_population = 6200000
+            self.initial_population = 6200000.
 
         elif self.region == 'LO':
             data = np.genfromtxt('../test/data/datafit_regions.csv', delimiter=",")[:,2:5]
@@ -582,7 +609,7 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(self.data_first_day,
                                                          self.data_first_day+len(self.death_data))
-            self.initial_population = 8900000
+            self.initial_population = 8900000.
 
         elif self.region == 'MI':
             data = np.genfromtxt('../test/data/datafit_regions.csv', delimiter=",")[:,5:8]
@@ -599,7 +626,7 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(self.data_first_day,
                                                          self.data_first_day+len(self.death_data))
-            self.initial_population = 10700000
+            self.initial_population = 10700000.
 
         elif self.region == 'NE':
             data = np.genfromtxt('../test/data/datafit_regions.csv', delimiter=",")[:,8:11]
@@ -616,7 +643,7 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(self.data_first_day,
                                                          self.data_first_day+len(self.death_data))
-            self.initial_population = 3210000
+            self.initial_population = 3210000.
 
         elif self.region == 'NW':
             data = np.genfromtxt('../test/data/datafit_regions.csv', delimiter=",")[:,11:14]
@@ -633,7 +660,7 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(self.data_first_day,
                                                          self.data_first_day+len(self.death_data))
-            self.initial_population = 7300000
+            self.initial_population = 7300000.
 
         elif self.region == 'SE':
             data = np.genfromtxt('../test/data/datafit_regions.csv', delimiter=",")[:,14:17]
@@ -650,7 +677,7 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(self.data_first_day,
                                                          self.data_first_day+len(self.death_data))
-            self.initial_population = 9130000
+            self.initial_population = 9130000.
 
         elif self.region == 'SW':
             data = np.genfromtxt('../test/data/datafit_regions.csv', delimiter=",")[:,17:20]
@@ -667,103 +694,11 @@ class delayed_compartment_model:
                                                          self.data_first_day+len(self.icu_prevalence_data))
             self.death_indices               = np.arange(self.data_first_day,
                                                          self.data_first_day+len(self.death_data))
-            self.initial_population = 5600000
+            self.initial_population = 5600000.
 
         else:
             print("Invalid region!")
             sys.exit(1)
-
-    def delayed_ode(self, t, y, rates, probabilities, transmission_rates):
-        """
-        The ODE model from Katrina Lythgoe, Lorenzo Pellis et al. (2020). It describes a compartmental
-        SEIR model, with further sub classification of hospitalised and intensive care patients.
-
-        Parameters
-        ----------
-
-        t : list
-            A list with two entries which defines the time range over which the ODE is integrated.
-            The first entry is the start time, the second entry is the end time.
-
-        y : numpy array
-            An array defining the states of the model. Some are repeated for a delayed component. They are
-            as follows:
-            - y[0]:  S
-            - y[1]:  ES
-            - y[4]:  IH
-            - y[6]:  IR
-            - y[7]:  HC
-            - y[8]:  HR
-            - y[9]:  CD
-            - y[10]: CR
-            - y[11]: M
-            - y[12]: EA
-            - y[15]: IA
-            - y[16]: R
-            - y[17]: D
-            - y[18]: X
-            - y[19]: N
-            - y[20]: HD
-
-        rates : numpy array
-            An array defining the rate constants of the model. Some are repeated for a delayed component. They are
-            as follows:
-            - rates[0]: rE
-            - rates[1]: rIH
-            - rates[2]: rIR
-            - rates[3]: rHC
-            - rates[4]: rHR
-            - rates[5]: rCD
-            - rates[6]: rCM
-            - rates[7]: rMR
-            - rates[8]: rA
-            - rates[9]: rX
-
-        probabilities : numpy array
-            An array defining the probabilities/proportions of the model. Some are
-            repeated for a delayed component. They are as follows:
-            - probabilities[0]: pA
-            - probabilities[1]: pH
-            - probabilities[2]: pC
-            - probabilities[3]: pD
-            - probabilities[4]: pT
-
-        transmission_rates : numpy array
-            An array defining the transmission rates of the model. Some are
-            repeated for a delayed component. They are as follows:
-            - transmission_rates[0]: b
-            - transmission_rates[1]: f
-            - transmission_rates[2]: h0
-
-        Returns
-        -------
-
-        dydt : numpy array
-            The value of the derivatives of each state variable, y, at time, t
-        """
-        dydt = np.array([ -y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19],
-                (1-probabilities[0]) * y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19] - rates[0]*y[1],
-                rates[0]*y[1] - rates[0]*y[2],
-                rates[0]*y[2] - rates[0]*y[3],
-                probabilities[1]*rates[0]*y[3] - rates[1]*y[4],
-                rates[1]*y[4] - rates[1]*y[5],
-                (1-probabilities[1])*rates[0]*y[3] - rates[2]*y[6],
-                probabilities[2]*rates[1]*y[5] - rates[3]*y[7],
-                (1-probabilities[2]-probabilities[4])*rates[1]*y[5] - rates[4]*y[8],
-                probabilities[3]*rates[3]*y[7] - rates[5]*y[9],
-                (1-probabilities[3])*rates[3]*y[7] - rates[6]*y[10],
-                rates[6]*y[10] - rates[7]*y[11],
-                probabilities[0] * y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19] - rates[0]*y[12],
-                rates[0]*y[12] - rates[0]*y[13],
-                rates[0]*y[13] - rates[0]*y[14],
-                rates[0]*y[14] - rates[8]*y[15],
-                rates[2]*y[6] + rates[4]*y[8] + rates[7]*y[11] + rates[8]*y[15],
-                rates[5]*y[9] + rates[4]*y[20] - rates[9]*y[17],
-                rates[9]*y[17],
-                -rates[5]*y[9] - rates[4]*y[20],
-                probabilities[4]*rates[1]*y[5] - rates[4]*y[20]])
-
-        return dydt
 
     def solve_ode(self,position,time_range=[0,99]):
         transmission_rates = np.copy(self.transmission_rates)
@@ -786,32 +721,33 @@ class delayed_compartment_model:
         # solve the ODE
         Yt = np.zeros((len(control_dates)+1,self.number_of_states))
         Y0 = np.array([self.initial_population-np.exp(log_initial_infectious),(1-probabilities[0])*np.exp(log_initial_infectious),
-                       0,0,0,0,0,0,0,0,0,0,probabilities[0]*np.exp(log_initial_infectious),0,0,0,0,0,0,self.initial_population,0])
+                       0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,probabilities[0]*np.exp(log_initial_infectious),0.,0.,0.,0.,0.,0.,self.initial_population,0.])
         Yt[0] = Y0
-        sol = solve_ivp(self.delayed_ode,
-                        [0,control_dates[0]],
-                        Y0,
-                        t_eval=np.arange(0,control_dates[0]+1),
-                        args=(rates,probabilities,transmission_rates))
+        t_eval=np.arange(0,control_dates[0]+1)
+        prob = de.ODEProblem(delayed_ode,
+                             Y0,
+                             [0,control_dates[0]],
+                             [rates,probabilities,transmission_rates])
+        sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
         Ttemp = sol.t
-        Ytemp = sol.y
-        Yt[1] = np.array([item[-1] for item in Ytemp])
+        Ytemp = np.array(sol.u)
+        Yt[1] = Ytemp[-1]
         Tall = Ttemp
         Yall = Ytemp
         for ic in range(len(control_dates)-1):
             time_range = np.array([control_dates[ic],control_dates[ic+1]])
+            t_eval = np.linspace(control_dates[ic],control_dates[ic+1],int(control_dates[ic+1]-control_dates[ic])+1)
             transmission_rates[0] = reduced_beta[ic]
-            sol = solve_ivp(self.delayed_ode,
-                            time_range,
-                            Yt[ic+1],
-                            t_eval=np.linspace(control_dates[ic],control_dates[ic+1],int(control_dates[ic+1]-control_dates[ic])+1),
-                            args=(rates,probabilities,transmission_rates))
+            prob = de.ODEProblem(delayed_ode,
+                                 Y0,
+                                 time_range,
+                                 [rates,probabilities,transmission_rates])
+            sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
             Ttemp = sol.t
-            Ytemp = sol.y
-            Yt[ic+2] = np.array([item[-1] for item in Ytemp])
+            Ytemp = np.array(sol.u)
+            Yt[ic+2] = np.array(Ytemp)[-1]
             Tall = np.append(Tall,Ttemp[1:])
-            Yall = np.append(Yall,np.array([item[1:] for item in Ytemp]),axis=-1)
-            # import pdb; pdb.set_trace()
+            Yall = np.append(Yall,Ytemp[1:,:],axis=0)
 
         return Yall
 
@@ -855,57 +791,57 @@ class delayed_compartment_model:
             # solve the ODE
             Yt = np.zeros((len(self.control_dates)+1,self.number_of_states))
             Y0 = np.array([self.initial_population-np.exp(log_initial_infectious),(1-probabilities[0])*np.exp(log_initial_infectious),
-                           0,0,0,0,0,0,0,0,0,0,probabilities[0]*np.exp(log_initial_infectious),0,0,0,0,0,0,self.initial_population,0])
+                           0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,probabilities[0]*np.exp(log_initial_infectious),0.,0.,0.,0.,0.,0.,self.initial_population,0.])
             Yt[0] = Y0
-            sol = solve_ivp(self.delayed_ode,
-                            [0,self.control_dates[0]],
-                            Y0,
-                            t_eval=np.arange(0,self.control_dates[0]+1),
-                            args=(rates,probabilities,transmission_rates))
+            time_range = [0.,self.control_dates[0]]
+            t_eval = np.linspace(0,self.control_dates[0],int(self.control_dates[0])+1)
+            p = [rates,probabilities,transmission_rates]
+            prob = de.ODEProblem(delayed_ode,Y0,time_range,p)
+            sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
             Ttemp = sol.t
-            Ytemp = sol.y
-            Yt[1] = np.array([item[-1] for item in Ytemp])
+            Ytemp = np.array(sol.u)
+            Yt[1] = Ytemp[-1]
             Tall = Ttemp
             Yall = Ytemp
             for ic in range(len(self.control_dates)-1):
                 time_range = np.array([self.control_dates[ic],self.control_dates[ic+1]])
+                t_eval = np.linspace(self.control_dates[ic],self.control_dates[ic+1],int(self.control_dates[ic+1]-self.control_dates[ic])+1)
                 transmission_rates[0] = reduced_beta[ic]
-                sol = solve_ivp(self.delayed_ode,
-                                time_range,
-                                Yt[ic+1],
-                                t_eval=np.linspace(self.control_dates[ic],self.control_dates[ic+1],int(self.control_dates[ic+1]-self.control_dates[ic])+1),
-                                args=(rates,probabilities,transmission_rates))
+                prob = de.ODEProblem(delayed_ode,
+                                     Y0,
+                                     time_range,
+                                     p)
+                sol = de.solve(prob,saveat=t_eval,abstol=1e-8,reltol=1e-8)
                 Ttemp = sol.t
-                Ytemp = sol.y
-                Yt[ic+2] = np.array([item[-1] for item in Ytemp])
+                Ytemp = np.array(sol.u)
+                Yt[ic+2] = Ytemp[-1]
                 Tall = np.append(Tall,Ttemp[1:])
-                Yall = np.append(Yall,np.array([item[1:] for item in Ytemp]),axis=-1)
+                Yall = np.append(Yall,Ytemp[1:,:],axis=0)
+            import pdb; pdb.set_trace()
 
             # Calculate log likelihood given fitting specification
             log_likelihood = 0
-            # import pdb; pdb.set_trace()
             if 'hospital_incidence' in self.fit:
                 log_likelihood += np.sum(st.nbinom.logpmf(self.hospital_incidence_data,
-                                                          self.rates[1]*Yall[5,self.hospital_incidence_indices]/(sigma_0-1),
+                                                          self.rates[1]*Yall[self.hospital_incidence_indices,5]/(sigma_0-1),
                                                           1/sigma_0))
 
             if 'hospital_prevalence' in self.fit:
                 log_likelihood += np.sum(st.nbinom.logpmf(self.hospital_prevalence_data,
-                                                          np.sum(Yall[[7,8,9,10,11,20]],axis=0)[self.hospital_prevalence_indices]/(sigma_0-1),
+                                                          np.sum(Yall[self.hospital_prevalence_indices][:,[7,8,9,10,11,20]],axis=-1)/(sigma_0-1),
                                                           1/sigma_0))
 
             if 'icu_prevalence' in self.fit:
                 log_likelihood += np.sum(st.nbinom.logpmf(self.icu_prevalence_data,
-                                                          np.sum(Yall[[9,10]],axis=0)[self.icu_prevalence_indices]/(sigma_0-1),
+                                                          np.sum(Yall[self.icu_prevalence_indices][:,[9,10]],axis=-1)/(sigma_0-1),
                                                           1/sigma_0))
 
-            # import pdb; pdb.set_trace()
 
             if 'death_incidence' in self.fit:
-                # import pdb; pdb.set_trace()
                 log_likelihood += np.sum(st.nbinom.logpmf(self.death_data,
-                                                          (rHR*Yall[20,self.death_indices] + rCD*Yall[9,self.death_indices])/(sigma_0-1),
+                                                          (rHR*Yall[self.death_indices,20] + rCD*Yall[self.death_indices,9])/(sigma_0-1),
                                                           1/sigma_0))
+            import pdb; pdb.set_trace()
             return log_likelihood
 
     def log_likelihood_gradient(self,position):

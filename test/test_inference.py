@@ -698,7 +698,7 @@ class TestInference(unittest.TestCase):
                     'output','posterior_death_incidence_fitall.pdf'))
 
     def test_katrina_model_random_walk(self):
-        delayed_model = covid_models.delayed_compartment_model(fit=['hospital_prevalence','hospital_incidence','icu_prevalence','death_incidence'])
+        delayed_model = covid_models.delayed_compartment_model()
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
         output = np.load(saving_path + 'katrina_random_walk_output_fit_all.npy')
 
