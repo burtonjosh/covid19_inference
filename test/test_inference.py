@@ -702,7 +702,7 @@ class TestInference(unittest.TestCase):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
         output = np.load(saving_path + 'katrina_random_walk_output_fit_all.npy')
 
-        number_of_samples = 1000
+        number_of_samples = 100000
         initial_position = np.array([0.7,0.4,0.1,2.0,10.0,0.5,0.5,0.5,0.5])
         step_size = 0.001
         proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0,1.0,1.0,1.0,1.0]))
@@ -720,7 +720,7 @@ class TestInference(unittest.TestCase):
         print('initial position',initial_position)
         print('covariance matrix',proposal_covariance)
 
-        step_size = 0.7
+        step_size = 0.1
         output = covid_inference.random_walk(delayed_model,
                                              number_of_samples,
                                              initial_position,
@@ -730,13 +730,13 @@ class TestInference(unittest.TestCase):
 
         print(np.mean(output,axis=0))
 
-        # plt.clf()
-        # fig, ax = plt.subplots(9,1,figsize=(10,10))
-        # for i in range(output.shape[1]):
-        #     ax[i].plot(output[:,i])
-        #     ax[i].set_xlabel('$\\theta_{}$'.format(i))
-        # plt.tight_layout()
-        # plt.show()
+        plt.clf()
+        fig, ax = plt.subplots(9,1,figsize=(10,10))
+        for i in range(output.shape[1]):
+            ax[i].plot(output[:,i])
+            ax[i].set_xlabel('$\\theta_{}$'.format(i))
+        plt.tight_layout()
+        plt.show()
         # # plt.savefig(os.path.join(os.path.dirname(__file__),
         # #                          'output','traceplots_random_walk_katrina_fitall.pdf'))
         # # plot a pairgrid
