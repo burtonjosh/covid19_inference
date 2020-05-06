@@ -766,7 +766,7 @@ class delayed_compartment_model:
 
         """
         number_of_parameters = len(position)
-        if (np.any(position[[0,1,2,5,6,7,8]] < 0) or (position[4] < 1)):
+        if (np.any(position[[0,1,2,5,6,7,8]] < 0.) or (position[4] < 1.)):
             return -np.inf
         else:
             transmission_rates = np.copy(self.transmission_rates)
