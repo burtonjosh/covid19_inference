@@ -800,14 +800,18 @@ class delayed_compartment_model:
             Yt[1] = Yall[int(self.control_dates[0])]
 
             for ic in range(len(self.control_dates)-1):
+                print(ic)
                 time_range = (self.control_dates[ic],self.control_dates[ic+1])
                 t_eval = np.linspace(self.control_dates[ic],self.control_dates[ic+1],int(self.control_dates[ic+1]-self.control_dates[ic])+1)
                 transmission_rates[0] = reduced_beta[ic]
+                print(Yt[ic+1])
                 prob = de.ODEProblem(self.delayed_ode,
                                      Yt[ic+1],
                                      time_range,
                                      params)
                 sol = de.solve(prob,saveat=t_eval)
+                print(Yt[ic+1])
+                print(sol)
 
                 Yall[int(self.control_dates[ic]):int(self.control_dates[ic+1]+1)] = np.array(sol.u)
                 Yt[ic+2] = Yall[int(self.control_dates[ic+1])]
