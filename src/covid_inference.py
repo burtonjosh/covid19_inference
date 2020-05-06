@@ -82,6 +82,10 @@ def random_walk(model,number_of_samples,initial_position,step_size,proposal_cova
             proposal = current_position + step_size*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
 
         proposal_log_likelihood = model.log_likelihood(proposal)
+        if proposal_log_likelihood == -np.inf:
+            if iteration_index%thinning_rate == 0:
+                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+            continue
 
         # accept-reject step
         if(np.random.uniform() < np.exp(proposal_log_likelihood - current_log_likelihood)):

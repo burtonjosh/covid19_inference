@@ -702,25 +702,25 @@ class TestInference(unittest.TestCase):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
         output = np.load(saving_path + 'katrina_random_walk_output_fit_all.npy')
 
-        number_of_samples = 100000
+        number_of_samples = 200000
         initial_position = np.array([0.7,0.4,0.1,2.0,10.0,0.5,0.5,0.5,0.5])
-        step_size = 0.001
-        proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0,1.0,1.0,1.0,1.0]))
+        # step_size = 0.0015
+        # proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0,1.0,1.0,1.0,1.0]))
         thinning_rate = 1
-        #
-        output = covid_inference.random_walk(delayed_model,
-                                             number_of_samples,
-                                             initial_position,
-                                             step_size,
-                                             proposal_covariance=proposal_covariance,
-                                             thinning_rate=thinning_rate)
+        # #
+        # output = covid_inference.random_walk(delayed_model,
+        #                                      number_of_samples,
+        #                                      initial_position,
+        #                                      step_size,
+        #                                      proposal_covariance=proposal_covariance,
+        #                                      thinning_rate=thinning_rate)
 
         proposal_covariance = np.cov(output.T)
-        initial_position = np.mean(output,axis=0)
+        # initial_position = np.mean(output,axis=0)
         print('initial position',initial_position)
         print('covariance matrix',proposal_covariance)
 
-        step_size = 0.1
+        step_size = 0.72
         output = covid_inference.random_walk(delayed_model,
                                              number_of_samples,
                                              initial_position,
