@@ -2,8 +2,7 @@ import numpy as np
 import scipy.stats as st
 from scipy.special import factorial, polygamma
 from scipy.integrate import solve_ivp
-import numba
-from numba import jitclass, float64, int64
+from numba import jit
 import sys
 
 class normal:
@@ -436,6 +435,98 @@ class negative_binomial_data:
 
         return log_likelihood_hessian
 
+# define derivative function outside of class to use numba JIT
+@jit(nopython=True)
+def delayed_ode(t, y, rates, probabilities, transmission_rates):
+    """
+    The ODE model from Katrina Lythgoe, Lorenzo Pellis et al. (2020). It describes a compartmental
+    SEIR model, with further sub classification of hospitalised and intensive care patients.
+
+    Parameters
+    ----------
+
+    t : list
+        A list with two entries which defines the time range over which the ODE is integrated.
+        The first entry is the start time, the second entry is the end time.
+
+    y : numpy array
+        An array defining the states of the model. Some are repeated for a delayed component. They are
+        as follows:
+        - y[0]:  S
+        - y[1]:  ES
+        - y[4]:  IH
+        - y[6]:  IR
+        - y[7]:  HC
+        - y[8]:  HR
+        - y[9]:  CD
+        - y[10]: CR
+        - y[11]: M
+        - y[12]: EA
+        - y[15]: IA
+        - y[16]: R
+        - y[17]: D
+        - y[18]: X
+        - y[19]: N
+        - y[20]: HD
+
+    rates : numpy array
+        An array defining the rate constants of the model. Some are repeated for a delayed component. They are
+        as follows:
+        - rates[0]: rE
+        - rates[1]: rIH
+        - rates[2]: rIR
+        - rates[3]: rHC
+        - rates[4]: rHR
+        - rates[5]: rCD
+        - rates[6]: rCM
+        - rates[7]: rMR
+        - rates[8]: rA
+        - rates[9]: rX
+
+    probabilities : numpy array
+        An array defining the probabilities/proportions of the model. Some are
+        repeated for a delayed component. They are as follows:
+        - probabilities[0]: pA
+        - probabilities[1]: pH
+        - probabilities[2]: pC
+        - probabilities[3]: pD
+        - probabilities[4]: pT
+
+    transmission_rates : numpy array
+        An array defining the transmission rates of the model. Some are
+        repeated for a delayed component. They are as follows:
+        - transmission_rates[0]: b
+        - transmission_rates[1]: f
+        - transmission_rates[2]: h0
+
+    Returns
+    -------
+
+    dydt : numpy array
+        The value of the derivatives of each state variable, y, at time, t
+    """
+    return np.array([ -y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19],
+            (1-probabilities[0]) * y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19] - rates[0]*y[1],
+            rates[0]*y[1] - rates[0]*y[2],
+            rates[0]*y[2] - rates[0]*y[3],
+            probabilities[1]*rates[0]*y[3] - rates[1]*y[4],
+            rates[1]*y[4] - rates[1]*y[5],
+            (1-probabilities[1])*rates[0]*y[3] - rates[2]*y[6],
+            probabilities[2]*rates[1]*y[5] - rates[3]*y[7],
+            (1-probabilities[2]-probabilities[4])*rates[1]*y[5] - rates[4]*y[8],
+            probabilities[3]*rates[3]*y[7] - rates[5]*y[9],
+            (1-probabilities[3])*rates[3]*y[7] - rates[6]*y[10],
+            rates[6]*y[10] - rates[7]*y[11],
+            probabilities[0] * y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19] - rates[0]*y[12],
+            rates[0]*y[12] - rates[0]*y[13],
+            rates[0]*y[13] - rates[0]*y[14],
+            rates[0]*y[14] - rates[8]*y[15],
+            rates[2]*y[6] + rates[4]*y[8] + rates[7]*y[11] + rates[8]*y[15],
+            rates[5]*y[9] + rates[4]*y[20] - rates[9]*y[17],
+            rates[9]*y[17],
+            -rates[5]*y[9] - rates[4]*y[20],
+            probabilities[4]*rates[1]*y[5] - rates[4]*y[20]])
+
 class delayed_compartment_model:
     """
     # TODO:
@@ -673,98 +764,6 @@ class delayed_compartment_model:
             print("Invalid region!")
             sys.exit(1)
 
-    def delayed_ode(self, t, y, rates, probabilities, transmission_rates):
-        """
-        The ODE model from Katrina Lythgoe, Lorenzo Pellis et al. (2020). It describes a compartmental
-        SEIR model, with further sub classification of hospitalised and intensive care patients.
-
-        Parameters
-        ----------
-
-        t : list
-            A list with two entries which defines the time range over which the ODE is integrated.
-            The first entry is the start time, the second entry is the end time.
-
-        y : numpy array
-            An array defining the states of the model. Some are repeated for a delayed component. They are
-            as follows:
-            - y[0]:  S
-            - y[1]:  ES
-            - y[4]:  IH
-            - y[6]:  IR
-            - y[7]:  HC
-            - y[8]:  HR
-            - y[9]:  CD
-            - y[10]: CR
-            - y[11]: M
-            - y[12]: EA
-            - y[15]: IA
-            - y[16]: R
-            - y[17]: D
-            - y[18]: X
-            - y[19]: N
-            - y[20]: HD
-
-        rates : numpy array
-            An array defining the rate constants of the model. Some are repeated for a delayed component. They are
-            as follows:
-            - rates[0]: rE
-            - rates[1]: rIH
-            - rates[2]: rIR
-            - rates[3]: rHC
-            - rates[4]: rHR
-            - rates[5]: rCD
-            - rates[6]: rCM
-            - rates[7]: rMR
-            - rates[8]: rA
-            - rates[9]: rX
-
-        probabilities : numpy array
-            An array defining the probabilities/proportions of the model. Some are
-            repeated for a delayed component. They are as follows:
-            - probabilities[0]: pA
-            - probabilities[1]: pH
-            - probabilities[2]: pC
-            - probabilities[3]: pD
-            - probabilities[4]: pT
-
-        transmission_rates : numpy array
-            An array defining the transmission rates of the model. Some are
-            repeated for a delayed component. They are as follows:
-            - transmission_rates[0]: b
-            - transmission_rates[1]: f
-            - transmission_rates[2]: h0
-
-        Returns
-        -------
-
-        dydt : numpy array
-            The value of the derivatives of each state variable, y, at time, t
-        """
-        dydt = np.array([ -y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19],
-                (1-probabilities[0]) * y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19] - rates[0]*y[1],
-                rates[0]*y[1] - rates[0]*y[2],
-                rates[0]*y[2] - rates[0]*y[3],
-                probabilities[1]*rates[0]*y[3] - rates[1]*y[4],
-                rates[1]*y[4] - rates[1]*y[5],
-                (1-probabilities[1])*rates[0]*y[3] - rates[2]*y[6],
-                probabilities[2]*rates[1]*y[5] - rates[3]*y[7],
-                (1-probabilities[2]-probabilities[4])*rates[1]*y[5] - rates[4]*y[8],
-                probabilities[3]*rates[3]*y[7] - rates[5]*y[9],
-                (1-probabilities[3])*rates[3]*y[7] - rates[6]*y[10],
-                rates[6]*y[10] - rates[7]*y[11],
-                probabilities[0] * y[0] * transmission_rates[0] * ( transmission_rates[1]*(y[1]+y[2]+y[3]+y[12]+y[13]+y[14]+y[15]) + (y[4]+y[5]+y[6]) ) / y[19] - rates[0]*y[12],
-                rates[0]*y[12] - rates[0]*y[13],
-                rates[0]*y[13] - rates[0]*y[14],
-                rates[0]*y[14] - rates[8]*y[15],
-                rates[2]*y[6] + rates[4]*y[8] + rates[7]*y[11] + rates[8]*y[15],
-                rates[5]*y[9] + rates[4]*y[20] - rates[9]*y[17],
-                rates[9]*y[17],
-                -rates[5]*y[9] - rates[4]*y[20],
-                probabilities[4]*rates[1]*y[5] - rates[4]*y[20]])
-
-        return dydt
-
     def solve_ode(self,position,time_range=[0,99]):
         transmission_rates = np.copy(self.transmission_rates)
         rates = np.copy(self.rates)
@@ -788,28 +787,24 @@ class delayed_compartment_model:
         Y0 = np.array([self.initial_population-np.exp(log_initial_infectious),(1-probabilities[0])*np.exp(log_initial_infectious),
                        0,0,0,0,0,0,0,0,0,0,probabilities[0]*np.exp(log_initial_infectious),0,0,0,0,0,0,self.initial_population,0])
         Yt[0] = Y0
-        sol = solve_ivp(self.delayed_ode,
+        sol = solve_ivp(delayed_ode,
                         [0,control_dates[0]],
                         Y0,
                         t_eval=np.arange(0,control_dates[0]+1),
                         args=(rates,probabilities,transmission_rates))
-        Ttemp = sol.t
         Ytemp = sol.y
         Yt[1] = np.array([item[-1] for item in Ytemp])
-        Tall = Ttemp
         Yall = Ytemp
         for ic in range(len(control_dates)-1):
             time_range = np.array([control_dates[ic],control_dates[ic+1]])
             transmission_rates[0] = reduced_beta[ic]
-            sol = solve_ivp(self.delayed_ode,
+            sol = solve_ivp(delayed_ode,
                             time_range,
                             Yt[ic+1],
                             t_eval=np.linspace(control_dates[ic],control_dates[ic+1],int(control_dates[ic+1]-control_dates[ic])+1),
                             args=(rates,probabilities,transmission_rates))
-            Ttemp = sol.t
             Ytemp = sol.y
             Yt[ic+2] = np.array([item[-1] for item in Ytemp])
-            Tall = np.append(Tall,Ttemp[1:])
             Yall = np.append(Yall,np.array([item[1:] for item in Ytemp]),axis=-1)
 
         return Yall
@@ -833,7 +828,7 @@ class delayed_compartment_model:
 
         """
         number_of_parameters = len(position)
-        if np.any(position[[0,1,2,4]] < 0):
+        if np.any(position[[0,1,2,5,6,7,8]] < 0.0) or (position[4] <= 1.0):
             return -np.inf
         else:
             transmission_rates = np.copy(self.transmission_rates)
@@ -856,28 +851,24 @@ class delayed_compartment_model:
             Y0 = np.array([self.initial_population-np.exp(log_initial_infectious),(1-probabilities[0])*np.exp(log_initial_infectious),
                            0,0,0,0,0,0,0,0,0,0,probabilities[0]*np.exp(log_initial_infectious),0,0,0,0,0,0,self.initial_population,0])
             Yt[0] = Y0
-            sol = solve_ivp(self.delayed_ode,
+            sol = solve_ivp(delayed_ode,
                             [0,self.control_dates[0]],
                             Y0,
                             t_eval=np.arange(0,self.control_dates[0]+1),
                             args=(rates,probabilities,transmission_rates))
-            Ttemp = sol.t
             Ytemp = sol.y
             Yt[1] = np.array([item[-1] for item in Ytemp])
-            Tall = Ttemp
             Yall = Ytemp
             for ic in range(len(self.control_dates)-1):
                 time_range = np.array([self.control_dates[ic],self.control_dates[ic+1]])
                 transmission_rates[0] = reduced_beta[ic]
-                sol = solve_ivp(self.delayed_ode,
+                sol = solve_ivp(delayed_ode,
                                 time_range,
                                 Yt[ic+1],
                                 t_eval=np.linspace(self.control_dates[ic],self.control_dates[ic+1],int(self.control_dates[ic+1]-self.control_dates[ic])+1),
                                 args=(rates,probabilities,transmission_rates))
-                Ttemp = sol.t
                 Ytemp = sol.y
                 Yt[ic+2] = np.array([item[-1] for item in Ytemp])
-                Tall = np.append(Tall,Ttemp[1:])
                 Yall = np.append(Yall,np.array([item[1:] for item in Ytemp]),axis=-1)
 
             # Calculate log likelihood given fitting specification
@@ -904,7 +895,7 @@ class delayed_compartment_model:
                 log_likelihood += np.sum(st.nbinom.logpmf(self.death_data,
                                                           (rHR*Yall[20,self.death_indices] + rCD*Yall[9,self.death_indices])/(sigma_0-1),
                                                           1/sigma_0))
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             return log_likelihood
 
     def log_likelihood_gradient(self,position):

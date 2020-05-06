@@ -698,29 +698,29 @@ class TestInference(unittest.TestCase):
                     'output','posterior_death_incidence_fitall.pdf'))
 
     def test_katrina_model_random_walk(self):
-        delayed_model = covid_models.delayed_compartment_model()
+        delayed_model = covid_models.delayed_compartment_model(region='NW')
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
         output = np.load(saving_path + 'katrina_random_walk_output_fit_all.npy')
 
-        number_of_samples = 2000
-        initial_position = np.array([0.7,0.4,0.1,2.0,10.0,0.5,0.5,0.5,0.5])
-        step_size = 0.001
-        proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0,1.0,1.0,1.0,1.0]))
+        number_of_samples = 100000
+        # initial_position = np.array([0.7,0.4,0.1,2.0,10.0,0.5,0.5,0.5,0.5])
+        # step_size = 0.001
+        # proposal_covariance = np.diag(np.array([1.0,1.0,1.0,5.0,100.0,1.0,1.0,1.0,1.0]))
         thinning_rate = 1
         #
-        output = covid_inference.random_walk(delayed_model,
-                                             number_of_samples,
-                                             initial_position,
-                                             step_size,
-                                             proposal_covariance=proposal_covariance,
-                                             thinning_rate=thinning_rate)
+        # output = covid_inference.random_walk(delayed_model,
+        #                                      number_of_samples,
+        #                                      initial_position,
+        #                                      step_size,
+        #                                      proposal_covariance=proposal_covariance,
+        #                                      thinning_rate=thinning_rate)
 
         proposal_covariance = np.cov(output.T)
-        initial_position = np.mean(output,axis=0)
+        initial_position = np.mean(output[1000:],axis=0)
         print('initial position',initial_position)
-        print('covariance matrix',proposal_covariance)
+        # print('covariance matrix',proposal_covariance)
 
-        step_size = 0.7
+        step_size = 0.9
         output = covid_inference.random_walk(delayed_model,
                                              number_of_samples,
                                              initial_position,
@@ -731,12 +731,12 @@ class TestInference(unittest.TestCase):
         print(np.mean(output,axis=0))
 
         # plt.clf()
-        # fig, ax = plt.subplots(9,1,figsize=(10,10))
-        # for i in range(output.shape[1]):
-        #     ax[i].plot(output[:,i])
-        #     ax[i].set_xlabel('$\\theta_{}$'.format(i))
-        # plt.tight_layout()
-        # plt.show()
+        fig, ax = plt.subplots(9,1,figsize=(10,10))
+        for i in range(output.shape[1]):
+            ax[i].plot(output[:,i])
+            ax[i].set_xlabel('$\\theta_{}$'.format(i))
+        plt.tight_layout()
+        plt.show()
         # # plt.savefig(os.path.join(os.path.dirname(__file__),
         # #                          'output','traceplots_random_walk_katrina_fitall.pdf'))
         # # plot a pairgrid
@@ -752,7 +752,7 @@ class TestInference(unittest.TestCase):
         # # plt.savefig(os.path.join(os.path.dirname(__file__),
         # #                          'output','pair_grid_random_walk_katrina_fitall.pdf'))
         #
-        # save = int(input('do you want to save? (0 is no, 1 is yes):\n'))
-        # if save:
-        #     np.save(os.path.join(os.path.dirname(__file__), 'output','katrina_random_walk_output_fit_all.npy'),
-        #             output)
+        save = int(input('do you want to save? (0 is no, 1 is yes):\n'))
+        if save:
+            np.save(os.path.join(os.path.dirname(__file__), 'output','katrina_random_walk_output_fit_all_NW.npy'),
+                    output)
