@@ -795,25 +795,23 @@ class delayed_compartment_model:
             params = [rates,probabilities,transmission_rates]
             prob = de.ODEProblem(self.delayed_ode,Y0,time_range,params)
             sol = de.solve(prob,saveat=t_eval)
-            # import pdb; pdb.set_trace()
+
             Yall[:int(self.control_dates[0]+1)] = np.array(sol.u)
-            # import pdb; pdb.set_trace()
             Yt[1] = Yall[int(self.control_dates[0])]
+
             for ic in range(len(self.control_dates)-1):
                 time_range = (self.control_dates[ic],self.control_dates[ic+1])
                 t_eval = np.linspace(self.control_dates[ic],self.control_dates[ic+1],int(self.control_dates[ic+1]-self.control_dates[ic])+1)
                 transmission_rates[0] = reduced_beta[ic]
-                # import pdb; pdb.set_trace()
                 prob = de.ODEProblem(self.delayed_ode,
                                      Yt[ic+1],
                                      time_range,
                                      params)
                 sol = de.solve(prob,saveat=t_eval)
-                # import pdb; pdb.set_trace()
+
                 Yall[int(self.control_dates[ic]):int(self.control_dates[ic+1]+1)] = np.array(sol.u)
-                # import pdb; pdb.set_trace()
                 Yt[ic+2] = Yall[int(self.control_dates[ic+1])]
-                # import pdb; pdb.set_trace()
+
             # Calculate log likelihood given fitting specification
             log_likelihood = 0
             if 'hospital_incidence' in self.fit:
@@ -836,7 +834,6 @@ class delayed_compartment_model:
                 log_likelihood += np.sum(st.nbinom.logpmf(self.death_data,
                                                           (rHR*Yall[self.death_indices,20] + rCD*Yall[self.death_indices,9])/(sigma_0-1),
                                                           1/sigma_0))
-            print(log_likelihood)
             return log_likelihood
 
     def log_likelihood_gradient(self,position):
